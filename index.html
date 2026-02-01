@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>快樂歌唱班 (V6 最終版)</title>
+    <style>
+        /* --- 全局設定 --- */
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: #000000; color: #FFFF00;
+            font-family: "Microsoft JhengHei", sans-serif;
+            overflow: hidden; display: flex; flex-direction: column;
+            user-select: none; -webkit-user-select: none;
+            touch-action: none; /* 禁止手勢縮放 */
+        }
+
+        /* --- 導航 --- */
+        #nav-bar {
+            height: 80px; background-color: #1a1a1a;
+            border-bottom: 3px solid #FFFF00;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 30px; box-sizing: border-box; z-index: 100;
+        }
+        .nav-title { font-size: 2rem; font-weight: bold; color: #FFFF00; }
+        .home-btn {
+            background: #000; border: 3px solid #00FFFF; color: #00FFFF;
+            padding: 10px 30px; border-radius: 15px; font-size: 1.5rem; font-weight: bold;
+        }
+
+        /* --- 屏幕容器 --- */
+        .screen {
+            display: none; width: 100%; height: calc(100% - 80px);
+            flex-direction: column; align-items: center; justify-content: center;
+            padding: 10px; box-sizing: border-box; background-color: #000;
+        }
+        .active { display: flex; }
+
+        /* --- 主選單 --- */
+        .menu-grid {
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;
+            width: 95%; height: 95%;
+        }
+        .menu-btn {
+            background: #000; border: 5px solid #FFFF00; border-radius: 20px;
+            color: #FFFF00; font-size: 2rem; font-weight: bold;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .menu-btn:active { background: #333; transform: scale(0.98); }
+        .menu-icon { font-size: 3rem; margin-bottom: 10px; }
+
+        /* --- 通用元件 --- */
+        h2 { font-size: 1.8rem; margin: 5px 0 10px 0; text-align: center; color: #00FFFF; }
+        .big-img { object-fit: contain; background-color: #222; border: 3px solid #fff; }
+
+        /* --- 1. 朗讀 --- */
+        #reading-container { width: 100%; flex: 1; display: flex; align-items: center; justify-content: space-around; }
+        #reading-img { width: 45vw; height: 60vh; border: 4px solid #FFFF00; }
+        #reading-text-area { width: 45vw; font-size: 2.8rem; line-height: 1.4; }
+        .highlight { color: #FF00FF; font-weight: bold; }
+        .nav-arrows { height: 70px; display: flex; gap: 30px; align-items: center; }
+        .arrow-btn { font-size: 2rem; background: #333; color: #fff; border: 2px solid #fff; padding: 10px 30px; border-radius: 10px; }
+
+        /* --- 2 & 3. 聽覺與視覺 --- */
+        .quiz-top { margin-bottom: 10px; }
+        .sound-btn { font-size: 2.5rem; padding: 10px 30px; border: 4px solid #00FF00; background: #000; color: #00FF00; border-radius: 20px; }
+        .options-container { width: 100%; flex: 1; display: flex; justify-content: center; gap: 30px; align-items: center; }
+        .option-card { width: 35vh; height: 35vh; border: 5px solid #555; border-radius: 20px; background: #fff; overflow: hidden; }
+        .option-card img { width: 100%; height: 100%; object-fit: contain; }
+
+        /* --- 4. 連線 --- */
+        #canvas-wrapper {
+            position: relative; width: 95vw; height: 70vh;
+            border: 4px solid #fff; background-color: #111; border-radius: 20px;
+        }
+        canvas { width: 100%; height: 100%; }
+        .trace-node {
+            position: absolute; width: 120px; height: 120px;
+            display: flex; justify-content: center; align-items: center;
+            z-index: 10;
+        }
+        .trace-start { left: 20px; top: 50%; transform: translateY(-50%); }
+        .trace-end { 
+            right: 20px; top: 50%; transform: translateY(-50%);
+            width: 100px; height: 100px; border-radius: 50%;
+            background-color: #FF0000; 
+            box-shadow: 0 0 40px #FF0000;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: translateY(-50%) scale(1); opacity: 0.8; }
+            50% { transform: translateY(-50%) scale(1.2); opacity: 1; }
+            100% { transform: translateY(-50%) scale(1); opacity: 0.8; }
+        }
+
+        /* --- 5. 填色 --- */
+        #coloring-layout {
+            display: flex; flex-direction: column;
+            width: 100%; height: 100%; 
+            align-items: center; justify-content: center;
+        }
+        #paint-area {
+            position: relative;
+            width: 90vw; height: 60vh;
+            border: 4px solid #fff; background: #fff;
+            border-radius: 10px; margin-bottom: 10px;
+        }
+        #paint-bg {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: contain; z-index: 5; pointer-events: none;
+            mix-blend-mode: multiply;
+        }
+        #paint-canvas {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 2; cursor: crosshair;
+        }
+        #palette {
+            display: flex; flex-direction: row; gap: 20px;
+            width: 90vw; height: 15vh;
+            justify-content: center; align-items: center;
+            background: #222; border-radius: 15px; border: 2px solid #555;
+        }
+        .color-btn {
+            width: 8vh; height: 8vh; border-radius: 50%; border: 3px solid #000;
+            box-shadow: 0 0 5px rgba(255,255,255,0.5);
+        }
+        .color-btn.selected { border: 5px solid #fff; transform: scale(1.2); }
+        .control-btns { display: flex; gap: 20px; margin-top: 5px; }
+
+        /* --- 提示層 --- */
+        #feedback-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); display: none;
+            justify-content: center; align-items: center; flex-direction: column; z-index: 999;
+        }
+        .feedback-msg { font-size: 4rem; color: #FFFF00; font-weight: bold; text-align: center; }
+
+    </style>
+</head>
+<body>
+
+    <div id="nav-bar">
+        <div class="nav-title">快樂歌唱班</div>
+        <button class="home-btn" onclick="goHome()">回主選單</button>
+    </div>
+
+    <div id="feedback-overlay">
+        <div class="feedback-msg">答對了！</div>
+    </div>
+
+    <div id="menu-screen" class="screen active">
+        <h2 style="color:#FFFF00;">請選擇遊戲</h2>
+        <div class="menu-grid">
+            <button class="menu-btn" style="border-color:#FF00FF;" onclick="startReading()">
+                <span class="menu-icon">📖</span> 課文朗讀
+            </button>
+            <button class="menu-btn" style="border-color:#00FF00;" onclick="startListening()">
+                <span class="menu-icon">👂</span> 聲音配對
+            </button>
+            <button class="menu-btn" style="border-color:#00FFFF;" onclick="startTwins()">
+                <span class="menu-icon">👀</span> 找找雙胞胎
+            </button>
+            <button class="menu-btn" style="border-color:#FFFF00;" onclick="startTracing()">
+                <span class="menu-icon">✍️</span> 連線寫寫看
+            </button>
+             <button class="menu-btn" style="border-color:#FFA500; grid-column: span 2;" onclick="startColoring()">
+                <span class="menu-icon">🎨</span> 神奇填色冊
+            </button>
+        </div>
+    </div>
+
+    <div id="reading-screen" class="screen">
+        <div id="reading-container">
+            <img id="reading-img" class="big-img" src="">
+            <div id="reading-text-area"></div>
+        </div>
+        <div class="nav-arrows">
+            <button class="arrow-btn" onclick="prevStory()">⬅ 上一頁</button>
+            <button class="arrow-btn" onclick="playCurrentStory()">🔊 播放</button>
+            <button class="arrow-btn" onclick="nextStory()">下一頁 ➡</button>
+        </div>
+    </div>
+
+    <div id="listening-screen" class="screen">
+        <h2>聲音配對：誰在發出這個聲音？</h2>
+        <div class="quiz-top">
+            <button class="sound-btn" onclick="playQuizSound()">🔊 點擊播放聲音</button>
+        </div>
+        <div class="options-container" id="listen-options"></div>
+    </div>
+
+    <div id="twins-screen" class="screen">
+        <h2>哪一張圖片是一樣的？</h2>
+        <div style="flex:1; display:flex; align-items:center;">
+             <div class="option-card" style="border-color: #00FFFF; transform:scale(1.1); cursor: default;">
+                <img id="twin-target" src="">
+             </div>
+        </div>
+        <div class="options-container" id="twins-options" style="background: #111; padding: 10px; border-radius:20px;"></div>
+    </div>
+
+    <div id="tracing-screen" class="screen">
+        <h2>請將圖片連到 <span style="color:#FF0000; font-size: 2rem;">●</span> 紅色圓點</h2>
+        <div id="canvas-wrapper">
+            <div id="trace-start" class="trace-node trace-start"></div>
+            <div id="trace-end" class="trace-node trace-end"></div>
+            <canvas id="trace-canvas"></canvas>
+        </div>
+        <button class="home-btn" style="margin-top:10px;" onclick="resetTracing()">重新畫</button>
+    </div>
+
+    <div id="coloring-screen" class="screen">
+        <h2>選一個顏色，幫圖片上色！</h2>
+        <div id="coloring-layout">
+            <div id="paint-area">
+                <img id="paint-bg" src="" alt="線稿">
+                <canvas id="paint-canvas"></canvas>
+            </div>
+            <div id="palette">
+                <div class="color-btn selected" style="background: #FF0000;" onclick="setColor('#FF0000', this)"></div>
+                <div class="color-btn" style="background: #FFFF00;" onclick="setColor('#FFFF00', this)"></div>
+                <div class="color-btn" style="background: #00FF00;" onclick="setColor('#00FF00', this)"></div>
+                <div class="color-btn" style="background: #0000FF;" onclick="setColor('#0000FF', this)"></div>
+                <div class="color-btn" style="background: #FFA500;" onclick="setColor('#FFA500', this)"></div>
+                <div class="color-btn" style="background: #fff; border: 4px solid #aaa;" onclick="setColor('eraser', this)">
+                    <span style="font-size: 2rem; color:black; display:block; text-align:center; line-height:8vh;">橡</span>
+                </div>
+            </div>
+            <div class="control-btns">
+                 <button class="home-btn" onclick="switchColorItem()">換一張圖</button>
+                 <button class="home-btn" style="border-color:#FFA500; color:#FFA500" onclick="resetPainting()">清除重畫</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 資料 ---
+        const storyData = [
+            { id: 'bird', name: '小鳥', soundText: '吱吱，吱吱', fullText: '小鳥兒唱歌，<br><span class="highlight">吱吱，吱吱</span>。', img: 'bird.png' },
+            { id: 'rain', name: '雨點', soundText: '沙沙，沙沙', fullText: '小雨點唱歌，<br><span class="highlight">沙沙，沙沙</span>。', img: 'rain.png' },
+            { id: 'rooster', name: '公雞', soundText: '喔喔，喔喔', fullText: '小公雞唱歌，<br><span class="highlight">喔喔，喔喔</span>。', img: 'rooster.png' },
+            { id: 'frog', name: '青蛙', soundText: '呱呱，呱呱', fullText: '小青蛙唱歌，<br><span class="highlight">呱呱，呱呱</span>。', img: 'frog.png' },
+            { id: 'kids', name: '小朋友', soundText: '老師好，同學早', fullText: '小朋友唱歌：<br>「早晨！早晨！太陽高高照，<br>背起書包上學去，<br><span class="highlight">老師好，同學早！</span>」', img: 'kids.png' }
+        ];
+
+        const colorData = [
+            { id: 'sun', name: '太陽', img: 'sun.png' },
+            { id: 'bag', name: '書包', img: 'bag.png' }
+        ];
+
+        const synth = window.speechSynthesis;
+        let audioCtx;
+        
+        // --- 核心函式 ---
+        function goHome() {
+            document.querySelectorAll('.screen').forEach(el => el.style.display = 'none');
+            document.getElementById('menu-screen').style.display = 'flex';
+            stopSpeaking();
+        }
+
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(el => el.style.display = 'none');
+            document.getElementById(id).style.display = 'flex';
+        }
+
+        function speak(text) {
+            stopSpeaking();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'zh-HK'; utterance.rate = 0.85;
+            synth.speak(utterance);
+        }
+
+        function stopSpeaking() { if (synth.speaking) synth.cancel(); }
+
+        function playSoundEffect() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(1000, audioCtx.currentTime + 0.1);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        // 修改：預設語音改為「答對了！」，移除「好棒」
+        function showFeedback(msg, callback, customSpeech) {
+            const overlay = document.getElementById('feedback-overlay');
+            overlay.querySelector('.feedback-msg').innerText = msg;
+            overlay.style.display = 'flex';
+            playSoundEffect();
+            // 如果有自訂語音就念自訂的，否則念預設的 "答對了！"
+            speak(customSpeech || "答對了！");
+            setTimeout(() => {
+                overlay.style.display = 'none';
+                if (callback) callback();
+            }, 2000);
+        }
+
+        // --- 朗讀 ---
+        let storyIndex = 0;
+        function startReading() { showScreen('reading-screen'); storyIndex = 0; renderStory(); }
+        function renderStory() {
+            const item = storyData[storyIndex];
+            document.getElementById('reading-img').src = item.img;
+            document.getElementById('reading-text-area').innerHTML = item.fullText;
+            playCurrentStory();
+        }
+        function playCurrentStory() {
+            const tempDiv = document.createElement("div");
+            tempDiv.innerHTML = storyData[storyIndex].fullText;
+            speak(tempDiv.textContent || tempDiv.innerText || "");
+        }
+        function nextStory() { if(storyIndex < storyData.length-1) { storyIndex++; renderStory(); } }
+        function prevStory() { if(storyIndex > 0) { storyIndex--; renderStory(); } }
+
+        // --- 聲音配對 ---
+        let quizItem = null;
+        function startListening() { showScreen('listening-screen'); nextListen(); }
+        function nextListen() {
+            quizItem = storyData[Math.floor(Math.random() * storyData.length)];
+            let opts = [quizItem];
+            while(opts.length < 3) {
+                let r = storyData[Math.floor(Math.random() * storyData.length)];
+                if(!opts.includes(r)) opts.push(r);
+            }
+            opts.sort(() => Math.random()-0.5);
+            const box = document.getElementById('listen-options'); box.innerHTML='';
+            opts.forEach(o => {
+                const c = document.createElement('div'); c.className='option-card';
+                c.innerHTML=`<img src="${o.img}">`;
+                c.onclick=()=>{ 
+                    if(o.id===quizItem.id) showFeedback('答對了！', nextListen); // 修正為答對了
+                    else speak("不對，再試一次，加油！");
+                };
+                box.appendChild(c);
+            });
+            setTimeout(playQuizSound, 500);
+        }
+        function playQuizSound() { speak("猜猜是誰的聲音？" + quizItem.soundText); }
+
+        // --- 找雙胞胎 ---
+        function startTwins() { showScreen('twins-screen'); nextTwin(); }
+        function nextTwin() {
+            const t = storyData[Math.floor(Math.random()*storyData.length)];
+            document.getElementById('twin-target').src = t.img;
+            let opts = [t];
+            while(opts.length < 2) {
+                let r = storyData[Math.floor(Math.random()*storyData.length)];
+                if(!opts.includes(r)) opts.push(r);
+            }
+            opts.sort(()=>Math.random()-0.5);
+            const box = document.getElementById('twins-options'); box.innerHTML='';
+            opts.forEach(o => {
+                const c = document.createElement('div'); c.className='option-card';
+                c.style.width='35vh'; c.style.height='35vh';
+                c.innerHTML=`<img src="${o.img}">`;
+                c.onclick=()=>{ 
+                    if(o.id===t.id) showFeedback('答對了！', nextTwin); // 修正為答對了
+                    else speak("不對，這個不一樣，再試一試，加油！");
+                };
+                box.appendChild(c);
+            });
+            speak("請找出一樣的圖片");
+        }
+
+        // --- 連線 ---
+        let traceCanvas, traceCtx, isTracing=false, traceTarget=null;
+        let lastTouchX = 0, lastTouchY = 0;
+
+        function startTracing() {
+            showScreen('tracing-screen');
+            traceCanvas = document.getElementById('trace-canvas');
+            traceCtx = traceCanvas.getContext('2d');
+            resizeTrace();
+            window.addEventListener('resize', resizeTrace);
+            
+            traceTarget = storyData[Math.floor(Math.random()*storyData.length)];
+            document.getElementById('trace-start').innerHTML = `<img src="${traceTarget.img}" style="width:80%; height:80%; object-fit:contain;">`;
+            
+            resetTracing();
+            
+            traceCanvas.addEventListener('mousedown', tStart);
+            traceCanvas.addEventListener('mousemove', tMove);
+            traceCanvas.addEventListener('mouseup', tEnd);
+            traceCanvas.addEventListener('touchstart', (e)=>{tStart(e.touches[0]);e.preventDefault();}, {passive:false});
+            traceCanvas.addEventListener('touchmove', (e)=>{tMove(e.touches[0]);e.preventDefault();}, {passive:false});
+            traceCanvas.addEventListener('touchend', (e)=>{tEnd();e.preventDefault();});
+            
+            speak("請把" + traceTarget.name + "連到紅色圓點");
+        }
+        function resizeTrace() {
+            const w = document.getElementById('canvas-wrapper');
+            traceCanvas.width = w.clientWidth; traceCanvas.height = w.clientHeight;
+        }
+        function resetTracing() {
+            traceCtx.clearRect(0,0,traceCanvas.width, traceCanvas.height);
+            traceCtx.lineWidth = 20; traceCtx.lineCap = 'round';
+            traceCtx.strokeStyle = '#FFFF00';
+        }
+        function tStart(e) { 
+            isTracing=true; traceCtx.beginPath();
+            const r = traceCanvas.getBoundingClientRect();
+            lastTouchX = e.clientX - r.left; lastTouchY = e.clientY - r.top;
+            traceCtx.moveTo(lastTouchX, lastTouchY);
+        }
+        function tMove(e) {
+            if(!isTracing)return;
+            const r = traceCanvas.getBoundingClientRect();
+            lastTouchX = e.clientX - r.left; lastTouchY = e.clientY - r.top;
+            traceCtx.lineTo(lastTouchX, lastTouchY);
+            traceCtx.stroke();
+        }
+        function tEnd() {
+            isTracing=false;
+            const endEl = document.getElementById('trace-end');
+            const wrapper = document.getElementById('canvas-wrapper');
+            const endRect = endEl.getBoundingClientRect();
+            const wrapRect = wrapper.getBoundingClientRect();
+            const endCenterX = (endRect.left - wrapRect.left) + (endRect.width / 2);
+            const endCenterY = (endRect.top - wrapRect.top) + (endRect.height / 2);
+            const dist = Math.sqrt(Math.pow(lastTouchX - endCenterX, 2) + Math.pow(lastTouchY - endCenterY, 2));
+
+            // 連線遊戲成功語音維持「做得好！」
+            if (dist < 100) {
+                showFeedback("做得好！", startTracing, "做得好！");
+            } else {
+                speak("還差一點點，請連到紅色圓點");
+            }
+        }
+
+        // --- 填色 ---
+        let colorIndex = 0;
+        let paintCanvas, paintCtx;
+        let currentColor = '#FF0000';
+        let isPainting = false;
+
+        function startColoring() {
+            showScreen('coloring-screen');
+            paintCanvas = document.getElementById('paint-canvas');
+            paintCtx = paintCanvas.getContext('2d');
+            
+            const area = document.getElementById('paint-area');
+            paintCanvas.width = area.clientWidth;
+            paintCanvas.height = area.clientHeight;
+            loadColorImg();
+
+            paintCanvas.addEventListener('mousedown', pStart);
+            paintCanvas.addEventListener('mousemove', pMove);
+            paintCanvas.addEventListener('mouseup', pEnd);
+            paintCanvas.addEventListener('touchstart', (e)=>{pStart(e.touches[0]);e.preventDefault();}, {passive:false});
+            paintCanvas.addEventListener('touchmove', (e)=>{pMove(e.touches[0]);e.preventDefault();}, {passive:false});
+            paintCanvas.addEventListener('touchend', (e)=>{pEnd();e.preventDefault();});
+
+            speak("選一個顏色，幫" + colorData[colorIndex].name + "填上顏色");
+        }
+        function loadColorImg() {
+            document.getElementById('paint-bg').src = colorData[colorIndex].img;
+            resetPainting();
+        }
+        function resetPainting() { paintCtx.clearRect(0, 0, paintCanvas.width, paintCanvas.height); }
+        function setColor(color, btn) {
+            currentColor = color;
+            document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+        }
+        function switchColorItem() {
+            colorIndex = (colorIndex + 1) % colorData.length;
+            loadColorImg();
+            speak("現在來畫" + colorData[colorIndex].name);
+        }
+        function pStart(e) {
+            isPainting = true; paintCtx.beginPath();
+            const r = paintCanvas.getBoundingClientRect();
+            paintCtx.moveTo(e.clientX - r.left, e.clientY - r.top);
+            
+            if (currentColor === 'eraser') {
+                paintCtx.globalCompositeOperation = 'destination-out';
+                paintCtx.lineWidth = 50; paintCtx.globalAlpha = 1;
+            } else {
+                paintCtx.globalCompositeOperation = 'source-over';
+                paintCtx.lineWidth = 40; paintCtx.strokeStyle = currentColor;
+                paintCtx.globalAlpha = 0.5; 
+            }
+            paintCtx.lineCap = 'round'; paintCtx.lineJoin = 'round';
+        }
+        function pMove(e) {
+            if (!isPainting) return;
+            const r = paintCanvas.getBoundingClientRect();
+            paintCtx.lineTo(e.clientX - r.left, e.clientY - r.top);
+            paintCtx.stroke();
+        }
+        function pEnd() { isPainting = false; paintCtx.beginPath(); }
+
+    </script>
+</body>
+</html>
